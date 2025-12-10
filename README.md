@@ -196,12 +196,6 @@ After flashing, the device will automatically appear in Home Assistant (assuming
 **Problem**: Blue LED blinking continuously  
 **Solution**: Device is in AP mode. Connect to "TuyaPlug" WiFi network and configure credentials
 
-**Problem**: No power monitoring data  
-**Solution**: Verify UART pins are correctly defined and BL0942 is properly connected
-
-**Problem**: Device keeps rebooting  
-**Solution**: Check power supply stability (ensure adequate 5V/1A supply)
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
