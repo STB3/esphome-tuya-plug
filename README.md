@@ -62,12 +62,14 @@ Transform your Tuya Smart Plug into a fully local, Home Assistant compatible dev
 
 Connect your programmer to the BL0942 power monitoring chip pins (easier access than T34 pins):
 
-- **Programmer TX** → **BL0942 Pin 10** (RX)
-- **Programmer RX** → **BL0942 Pin 9** (TX)
+- **Programmer TX** → **BL0942 Pin 10** (TX)
+- **Programmer RX** → **BL0942 Pin 9** (RX)
 - **GND** → **GND**
 - **5V DC Supply** → **Voltage Regulator Input**
 
-⚠️ **Important**: Do NOT connect 5V from the programmer. Use a separate 5V power supply.
+⚠️ **Important**: You can try to use 5V from the programmer.
+Sometimes they have not sufficient power.
+If that is not working use a separate 5V power supply.
 
 #### 2. Initial Flash
 
