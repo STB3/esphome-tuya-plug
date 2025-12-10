@@ -73,7 +73,7 @@ Connect your programmer to the BL0942 power monitoring chip pins (easier access 
 
 ```bash
 # Clone this repository
-git clone https://github.com/yourusername/esphome-tuya-plug.git
+git clone https://github.com/STB3/esphome-tuya-plug.git
 cd esphome-tuya-plug
 
 # Copy the example configuration
