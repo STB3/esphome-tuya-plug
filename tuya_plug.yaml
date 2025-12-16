@@ -38,8 +38,18 @@ wifi:
     
   on_connect:
     - script.stop: ap_mode_blink
-    - output.turn_on: led_output
+    - lambda: |-
+        id(wifi_connected) = true;
+        if (id(relay_switch).state) {
+          id(relay_on_pulse).execute();
+        } else {
+          id(led_output).set_level(1.0);
+        }
     
+  on_disconnect:
+    - lambda: |-
+        id(wifi_connected) = false;
+        
 captive_portal:
 
 api: 
@@ -54,24 +64,17 @@ web_server:
 
 
   
-# Make LED controllable as a light
+# Make LED controllable with PWM for pulsing effect
 output:
   - platform: gpio
     pin: P14
     id: relay_1
-  - platform: gpio
+  - platform: libretiny_pwm
     pin:
       number: P24
       inverted: false
     id: led_output
-
-# uncomment this part if you want to control the LED by Homeassistant
-#light:
-#  - platform: binary
-#    name: "Status LED"  # blue LED
-#    id: status_light
-#    output: led_output
-#    internal: true  # hide from Home Assistant unless needed   
+    frequency: 1000Hz
 
 # Local button on PCB
 binary_sensor:
@@ -92,6 +95,23 @@ switch:
     name: "Relay"
     id: relay_switch
     output: relay_1
+    on_turn_on:
+      - if:
+          condition:
+            lambda: 'return id(wifi_connected);'
+          then:
+            - script.execute: relay_on_pulse
+    on_turn_off:
+      - script.stop: relay_on_pulse
+      - if:
+          condition:
+            lambda: 'return id(wifi_connected);'
+          then:
+            - output.set_level:
+                id: led_output
+                level: 100%
+          else:
+            - script.execute: ap_mode_blink
     
 uart:
   id: bl0942_uart  # UART1 is used to read the data from the BL0942
@@ -110,10 +130,13 @@ sensor:
       name: 'Current'
     power:
       name: 'Power'
+      filters:
+        - multiply: -1
     energy:
       name: 'Energy'
     frequency:
       name: "Frequency"
+    update_interval: 10s 
       
   - platform: wifi_signal
     name: "TuyaPlug WiFi Signal"
@@ -131,11 +154,92 @@ script:
             - output.turn_on: led_output
             - delay: 200ms
             - output.turn_off: led_output
-            - delay: 1000ms     
+            - delay: 1000ms
+            
+  - id: relay_on_pulse
+    mode: restart
+    then:
+      - while:
+          condition:
+            switch.is_on: relay_switch
+          then:
+            # Fade in from 10% to 100% over 2 seconds
+            - output.set_level:
+                id: led_output
+                level: 10%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 20%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 30%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 40%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 50%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 60%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 70%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 80%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 90%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 100%
+            - delay: 150ms
+            # Fade out from 100% to 10% over 2 seconds
+            - output.set_level:
+                id: led_output
+                level: 90%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 80%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 70%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 60%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 50%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 40%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 30%
+            - delay: 150ms
+            - output.set_level:
+                id: led_output
+                level: 20%
+            - delay: 150ms
 
 globals:
   - id: wifi_connected
     type: bool
     restore_value: no
     initial_value: 'false'
-    
