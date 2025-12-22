@@ -5,10 +5,10 @@
 esphome:
   comment: "Tuya Smart Socket EU 20A with Power Monitor"
   #Testdevice
-  #name: tuya-smartplug-f1d4ba
-  #name_add_mac_suffix: false
-  name: tuya-smartplug
-  name_add_mac_suffix: true
+  name: tuya-smartplug-f23988
+  name_add_mac_suffix: false
+  #name: tuya-smartplug
+  #name_add_mac_suffix: true
   
   on_boot:
     then:
@@ -41,9 +41,11 @@ wifi:
     - lambda: |-
         id(wifi_connected) = true;
         if (id(relay_switch).state) {
-          id(relay_on_pulse).execute();
+          // Relay is ON - turn LED OFF
+          id(led_output).set_level(0.0);
         } else {
-          id(led_output).set_level(1.0);
+          // Relay is OFF - start pulsing
+          id(relay_off_pulse).execute();
         }
     
   on_disconnect:
@@ -86,8 +88,20 @@ binary_sensor:
       inverted: true  
     filters:
       - delayed_on: 50ms
-    on_press:
-      - switch.toggle: relay_switch  # manual control for relay
+    on_multi_click:
+      # Short press - toggle relay (normal operation)
+      - timing:
+          - ON for at most 1s
+          - OFF for at least 0.3s
+        then:
+          - switch.toggle: relay_switch
+      
+      # Long press (10 seconds) - factory reset with warning blink
+      - timing:
+          - ON for at least 10s
+        then:
+          - logger.log: "Factory reset triggered - button held for 10 seconds!"
+          - script.execute: factory_reset_warning
       
 # Switch to control the relay from the UI
 switch:
@@ -96,22 +110,35 @@ switch:
     id: relay_switch
     output: relay_1
     on_turn_on:
+      - script.stop: relay_off_pulse
       - if:
           condition:
             lambda: 'return id(wifi_connected);'
           then:
-            - script.execute: relay_on_pulse
-    on_turn_off:
-      - script.stop: relay_on_pulse
-      - if:
-          condition:
-            lambda: 'return id(wifi_connected);'
-          then:
+            # Relay ON - turn LED OFF
             - output.set_level:
                 id: led_output
-                level: 100%
+                level: 0%
           else:
+            # Not connected - keep AP mode blink running
             - script.execute: ap_mode_blink
+    on_turn_off:
+      - if:
+          condition:
+            lambda: 'return id(wifi_connected);'
+          then:
+            # Relay OFF - start pulsing
+            - script.execute: relay_off_pulse
+          else:
+            # Not connected - keep AP mode blink running
+            - script.execute: ap_mode_blink
+
+# Factory reset button (can also be triggered via API/web interface)
+button:
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: factory_reset_button
+    internal: true
     
 uart:
   id: bl0942_uart  # UART1 is used to read the data from the BL0942
@@ -121,6 +148,14 @@ uart:
 
 # Belling BL0942 Energy Monitor
 sensor:
+  # Status sensor for connectivity checking - creates /sensor/status endpoint
+  - platform: template
+    name: "Status"
+    id: status_sensor
+    lambda: 'return 1.0;'  # Always returns 1 when device is online
+    update_interval: 60s
+    internal: true  # Exposed to web server
+
   - platform: bl0942
     uart_id: bl0942_uart
     line_frequency: 50Hz
@@ -144,6 +179,7 @@ sensor:
     update_interval: 60s        
     
 script:
+  # AP mode / disconnected - fast blink
   - id: ap_mode_blink
     mode: restart
     then:
@@ -156,14 +192,15 @@ script:
             - output.turn_off: led_output
             - delay: 1000ms
             
-  - id: relay_on_pulse
+  # Relay OFF - slow breathing pulse
+  - id: relay_off_pulse
     mode: restart
     then:
       - while:
           condition:
-            switch.is_on: relay_switch
+            lambda: 'return !id(relay_switch).state && id(wifi_connected);'
           then:
-            # Fade in from 10% to 100% over 2 seconds
+            # Fade in from 10% to 100% over 1.5 seconds
             - output.set_level:
                 id: led_output
                 level: 10%
@@ -204,7 +241,7 @@ script:
                 id: led_output
                 level: 100%
             - delay: 150ms
-            # Fade out from 100% to 10% over 2 seconds
+            # Fade out from 100% to 10% over 1.5 seconds
             - output.set_level:
                 id: led_output
                 level: 90%
@@ -238,8 +275,26 @@ script:
                 level: 20%
             - delay: 150ms
 
+  # Factory reset warning - rapid blink before reset
+  - id: factory_reset_warning
+    mode: restart
+    then:
+      - script.stop: ap_mode_blink
+      - script.stop: relay_off_pulse
+      # Rapid blink 5 times as warning
+      - repeat:
+          count: 5
+          then:
+            - output.turn_on: led_output
+            - delay: 100ms
+            - output.turn_off: led_output
+            - delay: 100ms
+      # Execute factory reset
+      - button.press: factory_reset_button
+
 globals:
   - id: wifi_connected
     type: bool
     restore_value: no
     initial_value: 'false'
+
