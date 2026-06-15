@@ -159,6 +159,7 @@ sensor:
   - platform: bl0942
     uart_id: bl0942_uart
     line_frequency: 50Hz
+    restore_energy: false
     voltage:
       name: 'Voltage'
     current:
@@ -169,7 +170,6 @@ sensor:
         - multiply: -1
     energy:
       name: 'Energy'
-      restore_value: false
     frequency:
       name: "Frequency"
     update_interval: 10s 
