@@ -138,7 +138,14 @@ button:
   - platform: factory_reset
     name: "Factory Reset"
     id: factory_reset_button
-    internal: true
+    #internal: true
+
+  - platform: restart
+    name: Reboot
+
+  - platform: safe_mode
+    id: button_safe_mode
+    name: Safe Mode Boot    
     
 uart:
   id: bl0942_uart  # UART1 is used to read the data from the BL0942
